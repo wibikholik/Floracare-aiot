@@ -8,12 +8,25 @@ use Illuminate\Http\Request;
 
 class TanamanController extends Controller
 {
+    // Relasi yang ikut dimuat supaya aplikasi langsung dapat nama kategori & zona
+    private const RELASI = ['kategori:id,nama', 'zona:id,nama_zona'];
+
     // GET /api/tanaman : daftar tanaman milik pengguna yang login
+    // Filter opsional: ?kategori_id=1 &zona_id=2
     public function index(Request $request)
     {
-        $tanaman = Tanaman::where('user_id', $request->user()->id)
-            ->latest()
-            ->get();
+        $query = Tanaman::with(self::RELASI)
+            ->where('user_id', $request->user()->id);
+
+        if ($request->filled('kategori_id')) {
+            $query->where('kategori_id', $request->query('kategori_id'));
+        }
+
+        if ($request->filled('zona_id')) {
+            $query->where('zona_id', $request->query('zona_id'));
+        }
+
+        $tanaman = $query->latest()->get();
 
         return response()->json([
             'status'  => 200,
@@ -26,19 +39,23 @@ class TanamanController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nama'    => 'required|string|max:255',
-            'jenis'   => 'nullable|string|max:255',
-            'lokasi'  => 'nullable|string|max:255',
-            'status'  => 'nullable|string|max:50',
-            'catatan' => 'nullable|string',
+            'kategori_id' => 'nullable|integer|exists:kategori,id',
+            'zona_id'     => 'nullable|integer|exists:zona,id',
+            'nama'        => 'required|string|max:255',
+            'jenis'       => 'nullable|string|max:255',
+            'lokasi'      => 'nullable|string|max:255',
+            'status'      => 'nullable|string|max:50',
+            'catatan'     => 'nullable|string',
         ], [
-            'nama.required' => 'Nama tanaman wajib diisi',
+            'nama.required'      => 'Nama tanaman wajib diisi',
+            'kategori_id.exists' => 'Kategori tidak ditemukan',
+            'zona_id.exists'     => 'Zona tidak ditemukan',
         ]);
 
         $data['status']  = $data['status'] ?? 'sehat';
         $data['user_id'] = $request->user()->id;
 
-        $tanaman = Tanaman::create($data);
+        $tanaman = Tanaman::create($data)->load(self::RELASI);
 
         return response()->json([
             'status'  => 201,
@@ -73,13 +90,17 @@ class TanamanController extends Controller
         }
 
         $data = $request->validate([
-            'nama'    => 'sometimes|required|string|max:255',
-            'jenis'   => 'nullable|string|max:255',
-            'lokasi'  => 'nullable|string|max:255',
-            'status'  => 'nullable|string|max:50',
-            'catatan' => 'nullable|string',
+            'kategori_id' => 'nullable|integer|exists:kategori,id',
+            'zona_id'     => 'nullable|integer|exists:zona,id',
+            'nama'        => 'sometimes|required|string|max:255',
+            'jenis'       => 'nullable|string|max:255',
+            'lokasi'      => 'nullable|string|max:255',
+            'status'      => 'nullable|string|max:50',
+            'catatan'     => 'nullable|string',
         ], [
-            'nama.required' => 'Nama tanaman wajib diisi',
+            'nama.required'      => 'Nama tanaman wajib diisi',
+            'kategori_id.exists' => 'Kategori tidak ditemukan',
+            'zona_id.exists'     => 'Zona tidak ditemukan',
         ]);
 
         $tanaman->update($data);
@@ -87,7 +108,7 @@ class TanamanController extends Controller
         return response()->json([
             'status'  => 200,
             'message' => 'Tanaman berhasil diperbarui',
-            'data'    => $tanaman,
+            'data'    => $tanaman->load(self::RELASI),
         ], 200);
     }
 
@@ -111,7 +132,8 @@ class TanamanController extends Controller
     // Hanya mencari tanaman milik pengguna yang sedang login
     private function cari(Request $request, string $id): ?Tanaman
     {
-        return Tanaman::where('user_id', $request->user()->id)
+        return Tanaman::with(self::RELASI)
+            ->where('user_id', $request->user()->id)
             ->where('id', $id)
             ->first();
     }

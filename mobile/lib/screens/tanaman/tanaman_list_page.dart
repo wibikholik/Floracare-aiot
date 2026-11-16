@@ -1,25 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/tanaman_model.dart';
+import 'package:flutter_application_1/models/zona_model.dart';
+import 'package:flutter_application_1/screens/tanaman/kategori/kategori_list_page.dart';
 import 'package:flutter_application_1/screens/tanaman/tanaman_form_page.dart';
+import 'package:flutter_application_1/screens/tanaman/zona/zona_list_page.dart';
 import 'package:flutter_application_1/services/tanaman_service.dart';
+import 'package:flutter_application_1/services/zona_service.dart';
 
 class TanamanListPage extends StatefulWidget {
-  const TanamanListPage({super.key});
+  final int? initialZonaId;
+
+  const TanamanListPage({super.key, this.initialZonaId});
 
   @override
   State<TanamanListPage> createState() => _TanamanListPageState();
 }
 
-class _TanamanListPageState extends State<TanamanListPage> {
-  final _service = TanamanService();
+class _TanamanListPageState extends State<TanamanListPage>
+    with SingleTickerProviderStateMixin {
+  final _tanamanService = TanamanService();
+  final _zonaService = ZonaService();
+
+  late final TabController _tabController;
+  final _zonaKey = GlobalKey<ZonaListViewState>();
+  final _kategoriKey = GlobalKey<KategoriListViewState>();
+
   List<Tanaman> _daftarTanaman = [];
+  List<Zona> _daftarZona = [];
+  int? _filterZonaId;
+
   bool _isLoading = true;
   String? _pesanError;
 
   @override
   void initState() {
     super.initState();
-    _ambilTanaman();
+    _filterZonaId = widget.initialZonaId;
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+    _muatAwal();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _muatAwal() async {
+    await _ambilDaftarZona();
+    await _ambilTanaman();
+  }
+
+  Future<void> _ambilDaftarZona() async {
+    try {
+      final zonas = await _zonaService.getZona();
+      if (!mounted) return;
+      setState(() {
+        _daftarZona = zonas;
+        if (_filterZonaId != null &&
+            !_daftarZona.any((z) => z.id == _filterZonaId)) {
+          _filterZonaId = null;
+        }
+      });
+    } catch (_) {}
   }
 
   void _snack(String pesan, {bool isError = false}) {
@@ -39,7 +87,7 @@ class _TanamanListPageState extends State<TanamanListPage> {
     });
 
     try {
-      final data = await _service.getTanaman();
+      final data = await _tanamanService.getTanaman(zonaId: _filterZonaId);
       if (!mounted) return;
       setState(() {
         _daftarTanaman = data;
@@ -56,16 +104,21 @@ class _TanamanListPageState extends State<TanamanListPage> {
     }
   }
 
-  Future<void> _bukaForm({Tanaman? tanaman}) async {
+  Future<void> _bukaFormTanaman({Tanaman? tanaman}) async {
     final berhasil = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => TanamanFormPage(tanaman: tanaman),
+        builder: (_) => TanamanFormPage(
+          tanaman: tanaman,
+          defaultZonaId: _filterZonaId,
+        ),
       ),
     );
 
     if (berhasil == true) {
-      _ambilTanaman();
+      await _ambilTanaman();
+      _zonaKey.currentState?.reload();
+      _kategoriKey.currentState?.reload();
     }
   }
 
@@ -95,15 +148,33 @@ class _TanamanListPageState extends State<TanamanListPage> {
     if (yakin != true) return;
 
     try {
-      final pesan = await _service.hapusTanaman(tanaman.id);
+      final pesan = await _tanamanService.hapusTanaman(tanaman.id);
       _snack(pesan);
-      _ambilTanaman();
+      await _ambilTanaman();
+      _zonaKey.currentState?.reload();
+      _kategoriKey.currentState?.reload();
     } catch (e) {
       _snack(
         e.toString().replaceFirst('Exception: ', ''),
         isError: true,
       );
     }
+  }
+
+  void _aksiTombolTambah() {
+    if (_tabController.index == 0) {
+      _bukaFormTanaman();
+    } else if (_tabController.index == 1) {
+      _zonaKey.currentState?.bukaForm();
+    } else {
+      _kategoriKey.currentState?.bukaForm();
+    }
+  }
+
+  String get _labelTombolTambah {
+    if (_tabController.index == 1) return 'Tambah Zona';
+    if (_tabController.index == 2) return 'Tambah Kategori';
+    return 'Tambah Tanaman';
   }
 
   @override
@@ -113,30 +184,116 @@ class _TanamanListPageState extends State<TanamanListPage> {
       appBar: AppBar(
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
-        title: const Text('Data Tanaman'),
+        title: const Text('Manajemen Tanaman'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _ambilTanaman,
-            tooltip: 'Perbarui Data',
+            tooltip: 'Perbarui Semua',
+            onPressed: () {
+              _muatAwal();
+              _zonaKey.currentState?.reload();
+              _kategoriKey.currentState?.reload();
+            },
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.eco, size: 18), text: 'Tanaman'),
+            Tab(icon: Icon(Icons.grid_view_rounded, size: 18), text: 'Zona'),
+            Tab(icon: Icon(Icons.category, size: 18), text: 'Kategori'),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
-        onPressed: () => _bukaForm(),
+        onPressed: _aksiTombolTambah,
         icon: const Icon(Icons.add),
-        label: const Text('Tambah Tanaman'),
+        label: Text(_labelTombolTambah),
       ),
-      body: RefreshIndicator(
-        onRefresh: _ambilTanaman,
-        child: _buildBody(),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Daftar Tanaman
+          Column(
+            children: [
+              if (_daftarZona.isNotEmpty) _barFilterZona(),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _muatAwal,
+                  child: _buildTabTanaman(),
+                ),
+              ),
+            ],
+          ),
+          // Tab 2: Kelola Zona
+          ZonaListView(
+            key: _zonaKey,
+            onDataChanged: () async {
+              await _ambilDaftarZona();
+              await _ambilTanaman();
+            },
+            onPilihZona: (zonaId) {
+              setState(() => _filterZonaId = zonaId);
+              _tabController.animateTo(0);
+              _ambilTanaman();
+            },
+          ),
+          // Tab 3: Kelola Kategori
+          KategoriListView(
+            key: _kategoriKey,
+            onDataChanged: _ambilTanaman,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _barFilterZona() {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: const Text('Semua Zona'),
+              selected: _filterZonaId == null,
+              selectedColor: Colors.green[100],
+              onSelected: (_) {
+                setState(() => _filterZonaId = null);
+                _ambilTanaman();
+              },
+            ),
+            const SizedBox(width: 8),
+            ..._daftarZona.map((z) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(z.nama),
+                  selected: _filterZonaId == z.id,
+                  selectedColor: Colors.green[100],
+                  onSelected: (_) {
+                    setState(() => _filterZonaId = z.id);
+                    _ambilTanaman();
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabTanaman() {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.green),
@@ -164,7 +321,9 @@ class _TanamanListPageState extends State<TanamanListPage> {
           SizedBox(height: MediaQuery.of(context).size.height * 0.25),
           _pesanKosong(
             Icons.eco_outlined,
-            'Belum ada tanaman',
+            _filterZonaId == null
+                ? 'Belum ada tanaman'
+                : 'Belum ada tanaman di zona ini',
             'Tekan tombol "Tambah Tanaman" untuk mulai',
           ),
         ],
@@ -262,7 +421,7 @@ class _TanamanListPageState extends State<TanamanListPage> {
                   ),
                 if (t.lokasi.isNotEmpty)
                   Text(
-                    'Zona/Lokasi: ${t.lokasi}',
+                    'Posisi: ${t.lokasi}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 if (t.catatan.isNotEmpty)
@@ -279,22 +438,25 @@ class _TanamanListPageState extends State<TanamanListPage> {
                       ),
                     ),
                   ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: bgStatus,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    t.status,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: textStatus,
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _chipLabel(t.status, bgStatus, textStatus),
+                    if (t.zona != null)
+                      _chipLabel(
+                        t.zona!.nama,
+                        Colors.teal[50]!,
+                        Colors.teal[700]!,
+                      ),
+                    if (t.kategori != null)
+                      _chipLabel(
+                        t.kategori!.nama,
+                        Colors.purple[50]!,
+                        Colors.purple[700]!,
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -302,7 +464,7 @@ class _TanamanListPageState extends State<TanamanListPage> {
           PopupMenuButton<String>(
             onSelected: (aksi) {
               if (aksi == 'ubah') {
-                _bukaForm(tanaman: t);
+                _bukaFormTanaman(tanaman: t);
               } else if (aksi == 'hapus') {
                 _hapusTanaman(t);
               }
@@ -313,6 +475,24 @@ class _TanamanListPageState extends State<TanamanListPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _chipLabel(String label, Color bg, Color text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: text,
+        ),
       ),
     );
   }

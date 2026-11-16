@@ -127,7 +127,7 @@ class _HomeState extends State<Home> {
             icon: Icons.eco,
             warna: Colors.green[700]!,
             judul: 'Data Tanaman',
-            deskripsi: 'Kelola daftar tanaman sampel per zona (Tambah, Ubah, Hapus)',
+            deskripsi: 'Kelola tanaman sampel, pembagian zona, dan kategori',
             aktif: true,
             onTap: () {
               Navigator.push(
@@ -136,13 +136,21 @@ class _HomeState extends State<Home> {
               );
             },
           ),
+           _kartuMenu(
+            icon: Icons.camera_alt,
+            warna: Colors.orange[700]!,
+            judul: 'Deteksi Hama Tanaman',
+            deskripsi: 'Foto daun tanaman untuk mendeteksi serangan hama',
+            aktif: false,
+            onTap: () => _infoSegeraHadir('Deteksi Hama'),
+          ),
           _kartuMenu(
             icon: Icons.sensors,
             warna: Colors.teal[600]!,
-            judul: 'Monitoring Zona & Lingkungan',
+            judul: 'Monitoring Lingkungan',
             deskripsi: 'Pantau suhu, kelembapan udara, dan kelembapan tanah',
             aktif: false,
-            onTap: () => _infoSegeraHadir('Monitoring Zona'),
+            onTap: () => _infoSegeraHadir('Monitoring Lingkungan'),
           ),
           _kartuMenu(
             icon: Icons.water_drop,
@@ -152,14 +160,7 @@ class _HomeState extends State<Home> {
             aktif: false,
             onTap: () => _infoSegeraHadir('Kontrol Penyiraman'),
           ),
-          _kartuMenu(
-            icon: Icons.camera_alt,
-            warna: Colors.orange[700]!,
-            judul: 'Deteksi Hama Tanaman',
-            deskripsi: 'Foto daun tanaman untuk mendeteksi serangan hama',
-            aktif: false,
-            onTap: () => _infoSegeraHadir('Deteksi Hama'),
-          ),
+         
         ],
       ),
     );
