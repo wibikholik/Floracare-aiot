@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/methods/api.dart';
 import 'package:flutter_application_1/screens/auth/login.dart';
 import 'package:flutter_application_1/screens/tanaman/tanaman_list_page.dart';
+import 'package:flutter_application_1/screens/deteksi/scan_deteksi_screen.dart';
+import 'package:flutter_application_1/screens/deteksi/riwayat_deteksi_screen.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -136,13 +138,31 @@ class _HomeState extends State<Home> {
               );
             },
           ),
-           _kartuMenu(
+          _kartuMenu(
             icon: Icons.camera_alt,
             warna: Colors.orange[700]!,
-            judul: 'Deteksi Hama Tanaman',
-            deskripsi: 'Foto daun tanaman untuk mendeteksi serangan hama',
-            aktif: false,
-            onTap: () => _infoSegeraHadir('Deteksi Hama'),
+            judul: 'Deteksi Hama & Penyakit',
+            deskripsi: 'Foto tanaman apa saja, AI mengenali jenis dan masalahnya',
+            aktif: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ScanDeteksiScreen()),
+              );
+            },
+          ),
+          _kartuMenu(
+            icon: Icons.history,
+            warna: Colors.deepOrange[600]!,
+            judul: 'Riwayat Deteksi Hama',
+            deskripsi: 'Lihat hasil analisis AI dan tandai status penanganan',
+            aktif: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RiwayatDeteksiScreen()),
+              );
+            },
           ),
           _kartuMenu(
             icon: Icons.sensors,
@@ -160,7 +180,6 @@ class _HomeState extends State<Home> {
             aktif: false,
             onTap: () => _infoSegeraHadir('Kontrol Penyiraman'),
           ),
-         
         ],
       ),
     );

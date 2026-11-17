@@ -30,4 +30,8 @@ class Tanaman extends Model
     {
         return $this->belongsTo(Zona::class, 'zona_id');
     }
+    public function deteksiPenyakit()
+{
+    return $this->hasMany(DeteksiPenyakit::class);
+}
 }

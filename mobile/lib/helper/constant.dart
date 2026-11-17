@@ -13,8 +13,8 @@ Color primaryColor = HexColor('#023847');
 Color secondaryColor = HexColor('#1F7879');
 Color secondaryTextColor = HexColor('#658E92');
 
-// API Url (Ganti ke 'http://10.0.2.2:8000/api' jika menggunakan Android Emulator)
-String apiurl = 'http://127.0.0.1:8000/api';
+// API Url untuk HP fisik dalam jaringan Wi-Fi yang sama dengan laptop
+String apiurl = 'http://10.125.163.247:8000/api';
 
 Widget spancer({double w = 0, double h = 0}) {
   return SizedBox(
