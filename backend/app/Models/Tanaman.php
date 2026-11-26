@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tanaman extends Model
 {
@@ -31,7 +32,12 @@ class Tanaman extends Model
         return $this->belongsTo(Zona::class, 'zona_id');
     }
     public function deteksiPenyakit()
-{
-    return $this->hasMany(DeteksiPenyakit::class);
-}
+    {
+        return $this->hasMany(DeteksiPenyakit::class);
+    }
+
+    public function sampelSensor(): HasMany
+    {
+        return $this->hasMany(SampelSensor::class, 'tanaman_id')->orderBy('nomor');
+    }
 }
