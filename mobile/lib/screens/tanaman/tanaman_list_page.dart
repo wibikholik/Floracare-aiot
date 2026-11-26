@@ -3,6 +3,7 @@ import 'package:flutter_application_1/models/tanaman_model.dart';
 import 'package:flutter_application_1/models/zona_model.dart';
 import 'package:flutter_application_1/screens/tanaman/kategori/kategori_list_page.dart';
 import 'package:flutter_application_1/screens/tanaman/tanaman_form_page.dart';
+import 'package:flutter_application_1/screens/tanaman/sampel_sensor_list_page.dart';
 import 'package:flutter_application_1/screens/tanaman/zona/zona_list_page.dart';
 import 'package:flutter_application_1/services/tanaman_service.dart';
 import 'package:flutter_application_1/services/zona_service.dart';
@@ -465,12 +466,15 @@ class _TanamanListPageState extends State<TanamanListPage>
             onSelected: (aksi) {
               if (aksi == 'ubah') {
                 _bukaFormTanaman(tanaman: t);
+              } else if (aksi == 'sampel') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => SampelSensorListPage(tanaman: t)));
               } else if (aksi == 'hapus') {
                 _hapusTanaman(t);
               }
             },
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'ubah', child: Text('Ubah')),
+              PopupMenuItem(value: 'sampel', child: Text('Kelola Sampel Sensor')),
               PopupMenuItem(value: 'hapus', child: Text('Hapus')),
             ],
           ),

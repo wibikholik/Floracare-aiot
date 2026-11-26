@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\DeteksiPenyakitController;
 use App\Http\Controllers\Api\KategoriController;
 use App\Http\Controllers\Api\TanamanController;
+use App\Http\Controllers\Api\SampelSensorController;
 use App\Http\Controllers\Api\ZonaController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('kategori', KategoriController::class);
     Route::apiResource('zona', ZonaController::class);
     Route::apiResource('tanaman', TanamanController::class);
+    Route::apiResource('sampel-sensor', SampelSensorController::class);\n    Route::apiResource('sampel-sensor', SampelSensorController::class);
 
     // Deteksi penyakit/hama:
     // POST   /api/deteksi-penyakit        -> store   (kirim foto, maks 10x/menit per user)
