@@ -6,7 +6,12 @@ use App\Http\Controllers\Api\TanamanController;
 use App\Http\Controllers\Api\ZonaController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Api\MonitoringController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\JadwalController;
+use App\Http\Controllers\Api\PenyiramanController;
+use App\Http\Controllers\Api\PerangkatApiController;
+use App\Http\Middleware\AuthPerangkat;
 
 // Rute publik (tanpa token)
 Route::post('/register', [AuthController::class, 'register']);
@@ -41,4 +46,30 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:10,1');
     Route::apiResource('deteksi-penyakit', DeteksiPenyakitController::class)
         ->except(['store']);
+
+        // Monitoring lingkungan
+        // Monitoring & kontrol penyiraman
+    Route::get('monitoring', [MonitoringController::class, 'ringkasan']);
+
+    Route::prefix('zona/{zona}')->group(function () {
+        Route::get('monitoring', [MonitoringController::class, 'terbaru']);
+        Route::get('monitoring/riwayat', [MonitoringController::class, 'riwayat']);
+
+        Route::post('siram', [PenyiramanController::class, 'siram']);
+        Route::get('otomasi', [PenyiramanController::class, 'otomasi']);
+        Route::put('otomasi', [PenyiramanController::class, 'ubahOtomasi']);
+        Route::get('riwayat-penyiraman', [PenyiramanController::class, 'riwayat']);
+
+        Route::apiResource('jadwal', JadwalController::class)->except('show');
+    });
+
+    Route::post('perintah/{perintah}/batal', [PenyiramanController::class, 'batal']);
+    // Rute untuk alat (ESP32), autentikasi lewat header X-Device-Token
+Route::middleware([AuthPerangkat::class, 'throttle:120,1'])
+    ->prefix('perangkat')
+    ->group(function () {
+        Route::post('data-sensor', [PerangkatApiController::class, 'kirimData']);
+        Route::get('perintah', [PerangkatApiController::class, 'ambilPerintah']);
+        Route::post('perintah/{perintah}/selesai', [PerangkatApiController::class, 'selesai']);
+    });
 });

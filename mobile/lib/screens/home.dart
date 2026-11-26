@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_application_1/helper/json_helper.dart';
 import 'package:flutter_application_1/methods/api.dart';
+import 'package:flutter_application_1/models/monitoring_model.dart';
 import 'package:flutter_application_1/screens/auth/login.dart';
-import 'package:flutter_application_1/screens/tanaman/tanaman_list_page.dart';
-import 'package:flutter_application_1/screens/deteksi/scan_deteksi_screen.dart';
 import 'package:flutter_application_1/screens/deteksi/riwayat_deteksi_screen.dart';
+import 'package:flutter_application_1/screens/deteksi/scan_deteksi_screen.dart';
+import 'package:flutter_application_1/screens/monitoring/monitoring_screen.dart';
+import 'package:flutter_application_1/screens/tanaman/tanaman_list_page.dart';
+import 'package:flutter_application_1/services/monitoring_service.dart';
+import 'package:flutter_application_1/services/penyiraman_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -15,13 +21,29 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  final _monitoring = MonitoringService();
+
   String namaPengguna = '';
   String emailPengguna = '';
+
+  List<MonitoringZona> _zona = [];
+  bool _memuat = true;
+  String? _error;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _muatPengguna();
+    _muatRingkasan();
+    _timer = Timer.periodic(
+        const Duration(seconds: 15), (_) => _muatRingkasan(senyap: true));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _muatPengguna() async {
@@ -31,6 +53,30 @@ class _HomeState extends State<Home> {
       namaPengguna = preferences.getString('name') ?? 'Petani';
       emailPengguna = preferences.getString('email') ?? '';
     });
+  }
+
+  Future<void> _muatRingkasan({bool senyap = false}) async {
+    if (!senyap) {
+      setState(() {
+        _memuat = true;
+        _error = null;
+      });
+    }
+    try {
+      final data = await _monitoring.semuaZona();
+      if (!mounted) return;
+      setState(() {
+        _zona = data;
+        _error = null;
+        _memuat = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        if (!senyap || _zona.isEmpty) _error = bersihkanError(e);
+        _memuat = false;
+      });
+    }
   }
 
   Future<void> _logoutUser() async {
@@ -82,12 +128,35 @@ class _HomeState extends State<Home> {
     );
   }
 
+  // Tutup drawer lalu buka halaman
+  void _buka(Widget halaman) {
+    Navigator.pop(context);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => halaman));
+  }
+
+  Future<void> _bukaSiram(MonitoringZona z) async {
+    final berhasil = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _SheetSiram(zona: z),
+    );
+    if (berhasil == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Perintah siram untuk ${z.namaZona} dikirim')),
+      );
+      _muatRingkasan(senyap: true);
+    }
+  }
+
+  // ---------------------------------------------------------------- BUILD
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.green[700],
+        foregroundColor: Colors.white,
         elevation: 0,
         title: const Row(
           children: [
@@ -103,204 +172,450 @@ class _HomeState extends State<Home> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _konfirmasiLogout,
-            tooltip: 'Logout',
-          ),
-        ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _kartuPengguna(),
-          const SizedBox(height: 20),
-          const Text(
-            'Menu Utama',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+      drawer: _drawer(),
+      body: RefreshIndicator(
+        onRefresh: _muatRingkasan,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'Halo, $namaPengguna',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 12),
-          _kartuMenu(
-            icon: Icons.eco,
-            warna: Colors.green[700]!,
-            judul: 'Data Tanaman',
-            deskripsi: 'Kelola tanaman sampel, pembagian zona, dan kategori',
-            aktif: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TanamanListPage()),
-              );
-            },
-          ),
-          _kartuMenu(
-            icon: Icons.camera_alt,
-            warna: Colors.orange[700]!,
-            judul: 'Deteksi Hama & Penyakit',
-            deskripsi: 'Foto tanaman apa saja, AI mengenali jenis dan masalahnya',
-            aktif: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ScanDeteksiScreen()),
-              );
-            },
-          ),
-          _kartuMenu(
-            icon: Icons.history,
-            warna: Colors.deepOrange[600]!,
-            judul: 'Riwayat Deteksi Hama',
-            deskripsi: 'Lihat hasil analisis AI dan tandai status penanganan',
-            aktif: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RiwayatDeteksiScreen()),
-              );
-            },
-          ),
-          _kartuMenu(
-            icon: Icons.sensors,
-            warna: Colors.teal[600]!,
-            judul: 'Monitoring Lingkungan',
-            deskripsi: 'Pantau suhu, kelembapan udara, dan kelembapan tanah',
-            aktif: false,
-            onTap: () => _infoSegeraHadir('Monitoring Lingkungan'),
-          ),
-          _kartuMenu(
-            icon: Icons.water_drop,
-            warna: Colors.blue[600]!,
-            judul: 'Kontrol Penyiraman',
-            deskripsi: 'Atur jadwal dan penyiraman otomatis berdasarkan sampel',
-            aktif: false,
-            onTap: () => _infoSegeraHadir('Kontrol Penyiraman'),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              'Ringkasan kondisi tanaman hari ini',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Ringkasan Lingkungan',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MonitoringScreen()),
+                  ),
+                  child: const Text('Lihat detail'),
+                ),
+              ],
+            ),
+            if (_zona.isNotEmpty) _barisRingkasan(),
+            const SizedBox(height: 8),
+            ..._isiRingkasan(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _kartuPengguna() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
+  // ---------------------------------------------------------------- DRAWER
+
+  Widget _drawer() {
+    final inisial =
+        namaPengguna.isNotEmpty ? namaPengguna[0].toUpperCase() : 'P';
+    return Drawer(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.green[100],
-            child: Text(
-              namaPengguna.isNotEmpty ? namaPengguna[0].toUpperCase() : 'P',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.green[800],
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(color: Colors.green[700]),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Text(
+                inisial,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[800],
+                ),
               ),
             ),
+            accountName: Text(
+              namaPengguna,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            accountEmail: emailPengguna.isEmpty ? null : Text(emailPengguna),
           ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
-                Text(
-                  'Selamat Datang,',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                _itemDrawer(
+                  Icons.home,
+                  'Beranda',
+                  () => Navigator.pop(context),
+                  terpilih: true,
                 ),
-                Text(
-                  namaPengguna,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const Divider(),
+                _itemDrawer(Icons.eco, 'Data Tanaman',
+                    () => _buka(const TanamanListPage())),
+                _itemDrawer(Icons.camera_alt, 'Deteksi Hama & Penyakit',
+                    () => _buka(const ScanDeteksiScreen())),
+                _itemDrawer(Icons.history, 'Riwayat Deteksi Hama',
+                    () => _buka(const RiwayatDeteksiScreen())),
+                _itemDrawer(Icons.sensors, 'Monitoring Lingkungan',
+                    () => _buka(const MonitoringScreen())),
+                _itemDrawer(
+                  Icons.water_drop,
+                  'Kontrol Penyiraman',
+                  () {
+                    Navigator.pop(context);
+                    _infoSegeraHadir('Kontrol Penyiraman');
+                  },
+                  segera: true,
                 ),
-                if (emailPengguna.isNotEmpty)
-                  Text(
-                    emailPengguna,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
               ],
             ),
           ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Keluar', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _konfirmasiLogout();
+            },
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _kartuMenu({
-    required IconData icon,
-    required Color warna,
-    required String judul,
-    required String deskripsi,
-    required bool aktif,
-    required VoidCallback onTap,
+  Widget _itemDrawer(
+    IconData icon,
+    String judul,
+    VoidCallback onTap, {
+    bool terpilih = false,
+    bool segera = false,
   }) {
+    return ListTile(
+      leading: Icon(icon, color: terpilih ? Colors.green[700] : Colors.grey[700]),
+      title: Text(
+        judul,
+        style: TextStyle(
+          fontWeight: terpilih ? FontWeight.bold : FontWeight.normal,
+          color: terpilih ? Colors.green[800] : Colors.black87,
+        ),
+      ),
+      trailing: segera
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('Segera',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[700])),
+            )
+          : null,
+      selected: terpilih,
+      selectedTileColor: Colors.green[50],
+      onTap: onTap,
+    );
+  }
+
+  // ------------------------------------------------------------- RINGKASAN
+
+  Widget _barisRingkasan() {
+    final normal = _zona.where((z) => z.status == 'normal' || z.status == 'basah').length;
+    final kering = _zona.where((z) => z.status == 'kering').length;
+    final offline = _zona.where((z) => z.status == 'offline').length;
+    return Wrap(
+      spacing: 6,
+      children: [
+        _label('${_zona.length} zona', Colors.blueGrey),
+        _label('$normal normal', Colors.green),
+        if (kering > 0) _label('$kering perlu disiram', Colors.orange),
+        if (offline > 0) _label('$offline offline', Colors.grey),
+      ],
+    );
+  }
+
+  List<Widget> _isiRingkasan() {
+    if (_memuat && _zona.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+    if (_error != null && _zona.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _muatRingkasan,
+                child: const Text('Coba lagi'),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+    if (_zona.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Text(
+            'Belum ada zona. Tambahkan zona lewat menu Data Tanaman.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ];
+    }
+    return _zona.map(_kartuZona).toList();
+  }
+
+  Widget _kartuZona(MonitoringZona z) {
+    final s = z.sensor;
+    final aktif = z.perintahAktif;
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: warna.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: warna, size: 26),
-        ),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                judul,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    z.namaZona,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                _chipStatus(z.status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (s == null)
+              Text('Belum ada data dari alat',
+                  style: TextStyle(color: Colors.grey[600]))
+            else ...[
+              Row(
+                children: [
+                  Expanded(child: _mini(Icons.thermostat, s.suhu, '°C', 'Suhu')),
+                  Expanded(
+                      child: _mini(Icons.cloud, s.kelembapanUdara, '%', 'Udara')),
+                  Expanded(
+                      child: _mini(
+                          Icons.water_drop, s.kelembapanTanah, '%', 'Tanah')),
+                  Expanded(child: _mini(Icons.science, s.phTanah, '', 'pH')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  minHeight: 8,
+                  value: ((s.kelembapanTanah ?? 0) / 100).clamp(0.0, 1.0),
+                  backgroundColor: Colors.grey[200],
+                  color: _warnaStatus(z.status),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Data terakhir: ${formatWaktu(s.waktu)}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              children: [
+                if (z.otomatisAktif) _label('Otomatis aktif', Colors.green),
+                if (aktif != null)
+                  _label(
+                    aktif.menunggu ? 'Menunggu alat' : 'Sedang menyiram',
+                    Colors.blue,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: aktif == null ? () => _bukaSiram(z) : null,
+                icon: const Icon(Icons.water_drop),
+                label: Text(
+                  aktif == null
+                      ? 'Siram Manual'
+                      : (aktif.menunggu ? 'Menunggu alat...' : 'Sedang menyiram...'),
                 ),
               ),
             ),
-            if (!aktif)
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mini(IconData icon, double? nilai, String satuan, String label) {
+    return Column(
+      children: [
+        Icon(icon, size: 22, color: Colors.teal[600]),
+        const SizedBox(height: 4),
+        Text(
+          nilai == null ? '-' : '${nilai.toStringAsFixed(1)}$satuan',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  Color _warnaStatus(String status) {
+    switch (status) {
+      case 'kering':
+        return Colors.orange;
+      case 'basah':
+        return Colors.blue;
+      case 'offline':
+        return Colors.grey;
+      default:
+        return Colors.green;
+    }
+  }
+
+  Widget _chipStatus(String status) {
+    const teks = {
+      'normal': 'Normal',
+      'kering': 'Tanah kering',
+      'basah': 'Terlalu basah',
+      'offline': 'Alat offline',
+    };
+    return _label(teks[status] ?? status, _warnaStatus(status));
+  }
+
+  Widget _label(String teks, Color warna) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: warna.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        teks,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: warna),
+      ),
+    );
+  }
+}
+
+// Bottom sheet untuk penyiraman manual satu zona
+class _SheetSiram extends StatefulWidget {
+  final MonitoringZona zona;
+  const _SheetSiram({required this.zona});
+
+  @override
+  State<_SheetSiram> createState() => _SheetSiramState();
+}
+
+class _SheetSiramState extends State<_SheetSiram> {
+  double _durasi = 30;
+  bool _pupuk = false;
+  bool _mengirim = false;
+  String? _error;
+
+  Future<void> _kirim() async {
+    setState(() {
+      _mengirim = true;
+      _error = null;
+    });
+    try {
+      await PenyiramanService().siram(
+        widget.zona.zonaId,
+        durasi: _durasi.round(),
+        campurPupuk: _pupuk,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _mengirim = false;
+        _error = bersihkanError(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Siram ${widget.zona.namaZona}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            if (widget.zona.status == 'offline')
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  'Segera',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                child: const Text(
+                  'Alat sedang offline. Perintah akan dijalankan saat alat kembali online.',
+                  style: TextStyle(fontSize: 12),
                 ),
               ),
+            Text('Durasi: ${_durasi.round()} detik'),
+            Slider(
+              value: _durasi,
+              min: 5,
+              max: 300,
+              divisions: 59,
+              label: '${_durasi.round()} dtk',
+              onChanged: (v) => setState(() => _durasi = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Campur pupuk'),
+              value: _pupuk,
+              onChanged: (v) => setState(() => _pupuk = v),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _mengirim ? null : _kirim,
+                icon: const Icon(Icons.water_drop),
+                label: Text(_mengirim ? 'Mengirim...' : 'Siram Sekarang'),
+              ),
+            ),
           ],
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            deskripsi,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          ),
-        ),
-        trailing: Icon(Icons.chevron_right, color: Colors.grey[500]),
-        onTap: onTap,
       ),
     );
   }

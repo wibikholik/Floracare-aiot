@@ -14,7 +14,7 @@ Color secondaryColor = HexColor('#1F7879');
 Color secondaryTextColor = HexColor('#658E92');
 
 // API Url untuk HP fisik dalam jaringan Wi-Fi yang sama dengan laptop
-String apiurl = 'http://10.125.163.247:8000/api';
+String apiurl = 'http://localhost:8000/api';
 
 Widget spancer({double w = 0, double h = 0}) {
   return SizedBox(
