@@ -134,7 +134,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ]),
           const SizedBox(height: 6),
           Text(infoTanaman, style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.w600)),
-          Text('\${z.jumlahTanaman} tanaman terdaftar • \${z.sampel.length} titik sampel',
+          Text('${z.jumlahTanaman} tanaman terdaftar • ${z.sampel.length} titik sampel',
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const Divider(height: 22),
           if (s == null)
@@ -161,10 +161,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 style: TextStyle(fontSize: 11, color: Colors.grey[600])),
             const SizedBox(height: 4),
             SizedBox(height: 70, child: _GrafikTanah(
-              key: ValueKey('\${z.zonaId}-\${s.waktu}'),
+              key: ValueKey('${z.zonaId}-${s.waktu}'),
               zonaId: z.zonaId, warna: _warnaStatus(z.status))),
             const SizedBox(height: 6),
-            Text('Data terakhir: \${formatWaktu(s.waktu)}',
+            Text('Data terakhir: ${formatWaktu(s.waktu)}',
                 style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ],
           const SizedBox(height: 14),
@@ -234,10 +234,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Widget _informasiOtomasi(MonitoringZona z) {
     final info = <String, String>{
-      'Ambang penyiraman': z.batasKelembapanMin == null ? '-' : '\${z.batasKelembapanMin!.toStringAsFixed(0)}%',
-      'Batas maksimum': z.batasKelembapanMaks == null ? '-' : '\${z.batasKelembapanMaks!.toStringAsFixed(0)}%',
-      'Durasi': z.durasiDetik == null ? '-' : '\${z.durasiDetik} detik',
-      'Jeda': z.jedaMenit == null ? '-' : '\${z.jedaMenit} menit',
+      'Ambang penyiraman': z.batasKelembapanMin == null ? '-' : '${z.batasKelembapanMin!.toStringAsFixed(0)}%',
+      'Batas maksimum': z.batasKelembapanMaks == null ? '-' : '${z.batasKelembapanMaks!.toStringAsFixed(0)}%',
+      'Durasi': z.durasiDetik == null ? '-' : '${z.durasiDetik} detik',
+      'Jeda': z.jedaMenit == null ? '-' : '${z.jedaMenit} menit',
       'Metode': 'Sprinkler dari atas',
     };
     return Container(
