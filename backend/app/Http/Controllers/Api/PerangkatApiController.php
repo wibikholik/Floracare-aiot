@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api;
+namespace App\Http\Controllers\Api;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\DataSensor;
-use App\\Models\\SampelSensor;
-use App\\Models\\PerintahPenyiraman;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
+use App\Http\Controllers\Controller;
+use App\Models\DataSensor;
+use App\Models\SampelSensor;
+use App\Models\PerintahPenyiraman;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 // Endpoint yang dipanggil ALAT (ESP32), bukan aplikasi petani
 class PerangkatApiController extends Controller
