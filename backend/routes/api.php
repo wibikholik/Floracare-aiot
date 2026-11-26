@@ -34,7 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // PUT /{id} (update), DELETE /{id} (destroy)
     Route::apiResource('kategori', KategoriController::class);
     Route::apiResource('zona', ZonaController::class);
-    Route::apiResource('tanaman', TanamanController::class);
+    Route::apiResource('tanaman', TanamanController::class);\n    Route::apiResource('sampel-sensor', SampelSensorController::class);
 
     // Deteksi penyakit/hama:
     // POST   /api/deteksi-penyakit        -> store   (kirim foto, maks 10x/menit per user)
