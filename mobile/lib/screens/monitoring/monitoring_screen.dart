@@ -112,83 +112,145 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Widget _kartuZona(MonitoringZona z) {
     final s = z.sensor;
+    final tanamanUtama = z.tanaman.isNotEmpty ? z.tanaman.first : null;
+    final namaTanaman = tanamanUtama?.nama ?? 'Tanaman belum ditentukan';
+    final kategori = tanamanUtama?.kategori;
+    final infoTanaman = [
+      if (kategori != null && kategori.isNotEmpty) kategori,
+      namaTanaman,
+    ].join(' • ');
+
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(z.namaZona,
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.bold)),
-                ),
-                _chipStatus(z.status),
-              ],
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(z.namaZona,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
+            _chipStatus(z.status),
+          ]),
+          const SizedBox(height: 6),
+          Text(infoTanaman, style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.w600)),
+          Text('${z.jumlahTanaman} tanaman terdaftar • ${z.sampel.length} titik sampel',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          const Divider(height: 22),
+          if (s == null)
+            Text('Belum ada data dari alat', style: TextStyle(color: Colors.grey[600]))
+          else ...[
+            Row(children: [
+              Expanded(child: _metrik(Icons.thermostat, 'Suhu udara', s.suhu, '°C')),
+              Expanded(child: _metrik(Icons.cloud, 'Kelembapan udara', s.kelembapanUdara, '%')),
+            ]),
+            const SizedBox(height: 12),
+            _metrik(Icons.water_drop, 'Kelembapan tanah rata-rata', s.kelembapanTanah, '%'),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                minHeight: 8,
+                value: ((s.kelembapanTanah ?? 0) / 100).clamp(0.0, 1.0),
+                backgroundColor: Colors.grey[200],
+                color: _warnaStatus(z.status),
+              ),
             ),
             const SizedBox(height: 12),
-            if (s == null)
-              Text('Belum ada data dari alat',
-                  style: TextStyle(color: Colors.grey[600]))
-            else ...[
-              Row(children: [
-                Expanded(child: _metrik(Icons.thermostat, 'Suhu', s.suhu, '°C')),
-                Expanded(
-                    child: _metrik(Icons.cloud, 'Kelembapan udara',
-                        s.kelembapanUdara, '%')),
-              ]),
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(
-                    child: _metrik(Icons.water_drop, 'Kelembapan tanah',
-                        s.kelembapanTanah, '%')),
-                Expanded(child: _metrik(Icons.science, 'pH tanah', s.phTanah, '')),
-              ]),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  value: ((s.kelembapanTanah ?? 0) / 100).clamp(0.0, 1.0),
-                  backgroundColor: Colors.grey[200],
-                  color: _warnaStatus(z.status),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text('Kelembapan tanah 24 jam terakhir',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 70,
-                child: _GrafikTanah(
-                  key: ValueKey('${z.zonaId}-${s.waktu}'),
-                  zonaId: z.zonaId,
-                  warna: _warnaStatus(z.status),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text('Data terakhir: ${formatWaktu(s.waktu)}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                if (z.otomatisAktif) _label('Otomatis aktif', Colors.green),
-                if (z.perintahAktif != null)
-                  _label(
-                    z.perintahAktif!.menunggu ? 'Menunggu alat' : 'Sedang menyiram',
-                    Colors.blue,
-                  ),
-              ],
-            ),
+            Text('Grafik kelembapan tanah 24 jam terakhir (rata-rata zona)',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            SizedBox(height: 70, child: _GrafikTanah(
+              key: ValueKey('${z.zonaId}-${s.waktu}'),
+              zonaId: z.zonaId, warna: _warnaStatus(z.status))),
+            const SizedBox(height: 6),
+            Text('Data terakhir: ${formatWaktu(s.waktu)}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ],
-        ),
+          const SizedBox(height: 14),
+          _judulBagian('Detail sampel sensor'),
+          if (z.sampel.isEmpty)
+            Text('Belum ada data sampel sensor', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+          else
+            ...z.sampel.map((sample) => _kartuSampel(sample, z)),
+          const SizedBox(height: 12),
+          _judulBagian('Informasi otomasi'),
+          _informasiOtomasi(z),
+          const SizedBox(height: 10),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            _label(z.otomatisAktif ? 'Otomatis aktif' : 'Otomatis nonaktif',
+                z.otomatisAktif ? Colors.green : Colors.grey),
+            if (z.perintahAktif != null)
+              _label(z.perintahAktif!.menunggu ? 'Menunggu alat' : 'Sedang menyiram', Colors.blue),
+          ]),
+        ]),
       ),
+    );
+  }
+
+  Widget _judulBagian(String teks) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(teks, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+      );
+
+  Widget _kartuSampel(SampelSensorData sample, MonitoringZona z) {
+    final nilai = sample.kelembapanTanah;
+    var status = 'Data kosong';
+    var warna = Colors.grey;
+    if (nilai != null) {
+      if (z.batasKelembapanMin != null && nilai < z.batasKelembapanMin!) {
+        status = 'Kering';
+        warna = Colors.orange;
+      } else if (z.batasKelembapanMaks != null && nilai > z.batasKelembapanMaks!) {
+        status = 'Basah';
+        warna = Colors.blue;
+      } else {
+        status = 'Normal';
+        warna = Colors.green;
+      }
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.grey.shade50,
+      ),
+      child: Column(children: [
+        Row(children: [
+          Expanded(child: Text(sample.nama, style: const TextStyle(fontWeight: FontWeight.w600))),
+          _label(status, warna),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _metrik(Icons.water_drop, 'Kelembapan tanah', nilai, '%')),
+          Expanded(child: _metrik(Icons.science, 'pH tanah', sample.phTanah, '')),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _informasiOtomasi(MonitoringZona z) {
+    final info = <String, String>{
+      'Ambang penyiraman': z.batasKelembapanMin == null ? '-' : '${z.batasKelembapanMin!.toStringAsFixed(0)}%',
+      'Batas maksimum': z.batasKelembapanMaks == null ? '-' : '${z.batasKelembapanMaks!.toStringAsFixed(0)}%',
+      'Durasi': z.durasiDetik == null ? '-' : '${z.durasiDetik} detik',
+      'Jeda': z.jedaMenit == null ? '-' : '${z.jedaMenit} menit',
+      'Metode': 'Sprinkler dari atas',
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+      child: Column(children: info.entries.map((e) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          Expanded(child: Text(e.key, style: TextStyle(fontSize: 12, color: Colors.grey[700]))),
+          Text(e.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ]),
+      )).toList()),
     );
   }
 
