@@ -8,15 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Zona extends Model
 {
-    // Nama tabel ditulis eksplisit supaya tidak berubah jadi "zonas"
     protected $table = 'zona';
 
-    protected $fillable = [
-        'nama_zona',
-        'deskripsi',
-    ];
+    protected $fillable = ['nama_zona', 'deskripsi'];
 
-    // Satu zona bisa menampung banyak tanaman
     public function tanaman(): HasMany
     {
         return $this->hasMany(Tanaman::class, 'zona_id');
@@ -25,6 +20,11 @@ class Zona extends Model
     public function perangkat(): HasMany
     {
         return $this->hasMany(Perangkat::class);
+    }
+
+    public function sampelSensor(): HasMany
+    {
+        return $this->hasMany(SampelSensor::class, 'zona_id')->orderBy('nomor');
     }
 
     public function pengaturanOtomasi(): HasOne
